@@ -11,8 +11,6 @@ const HONO_API_URL = import.meta.env.VITE_HONO_API_URL || 'http://localhost:3000
 export async function streamLLMMessage(
   requestId: string,
   messages: Array<{ role: string; content: string }>,
-  modelName: string,
-  providerSlug?: string,
   callbacks?: StreamCallbacks,
   personaId?: string,
   conversationId?: string
@@ -20,7 +18,7 @@ export async function streamLLMMessage(
   let hasEmittedChunk = false;
   let isThinking = false;
 
-  console.log('[LLM Client] Sending request to:', `${HONO_API_URL}/api/chat/stream`, { modelName, providerSlug, conversationId });
+  console.log('[LLM Client] Sending request to:', `${HONO_API_URL}/api/chat/stream`, { conversationId });
 
   try {
     const response = await fetch(`${HONO_API_URL}/api/chat/stream`, {
@@ -28,8 +26,6 @@ export async function streamLLMMessage(
       headers: getAuthHeaders(),
       body: JSON.stringify({
         messages,
-        modelName,
-        providerSlug,
         personaId: personaId || 'default',
         conversationId,
       }),

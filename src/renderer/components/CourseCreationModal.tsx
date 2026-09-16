@@ -12,15 +12,14 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { generateCourse } from '../services/courseService';
-import { getModelById } from '../models';
 import { SequentialGenerationVisualizer } from './preview/SequentialGenerationVisualizer';
 
 interface CourseCreationModalProps {
   isOpen: boolean;
   onClose: () => void;
   onCourseCreated: (courseId: string) => void;
-  selectedModel: string;
   onOpenAnimationPreview?: () => void;
+  initialTopic?: string | null;
 }
 
 interface TopicCategory {
@@ -111,8 +110,8 @@ export const CourseCreationModal: React.FC<CourseCreationModalProps> = ({
   isOpen,
   onClose,
   onCourseCreated,
-  selectedModel,
   onOpenAnimationPreview,
+  initialTopic = null,
 }) => {
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [selectedNavGroup, setSelectedNavGroup] = useState<string>('learn_courses');
@@ -136,6 +135,14 @@ export const CourseCreationModal: React.FC<CourseCreationModalProps> = ({
       inputRef.current.focus();
     }
   }, [showCustomInput]);
+
+  useEffect(() => {
+    if (isOpen && initialTopic) {
+      setSelectedTopicTitle(initialTopic);
+      setErrorMsg(null);
+      setStep(2);
+    }
+  }, [isOpen, initialTopic]);
 
   if (!isOpen) return null;
 
@@ -164,14 +171,11 @@ export const CourseCreationModal: React.FC<CourseCreationModalProps> = ({
     setStep(3);
 
     try {
-      const modelObj = getModelById(selectedModel);
       console.log('[CourseModal] Starting course generation with params:', {
         topic: selectedTopicTitle,
         level: knowledgeLevel,
         goal: targetGoal,
         style: explanationStyle,
-        modelName: selectedModel,
-        providerSlug: modelObj?.providerSlug,
       });
 
       const course = await generateCourse({
@@ -179,8 +183,6 @@ export const CourseCreationModal: React.FC<CourseCreationModalProps> = ({
         level: knowledgeLevel,
         goal: targetGoal,
         style: explanationStyle,
-        modelName: selectedModel,
-        providerSlug: modelObj?.providerSlug,
       });
 
       console.log('[CourseModal] Course generated successfully:', course);

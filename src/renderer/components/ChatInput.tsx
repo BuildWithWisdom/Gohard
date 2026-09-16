@@ -1,68 +1,32 @@
 import React, { useState, useRef, useEffect, KeyboardEvent } from 'react';
-import { Paperclip, CodeXml, Globe, ChevronDown, ArrowUp, Square, Plus } from 'lucide-react';
+import { Paperclip, CodeXml, Globe, ArrowUp, Square, Plus } from 'lucide-react';
 
 interface ChatInputProps {
   onSendMessage: (text: string) => void;
-  selectedModel: string;
-  onSelectModel: (model: string) => void;
   disabled?: boolean;
   isStreaming?: boolean;
   onAbort?: () => void;
 }
 
-import { MODEL_GROUPS, getModelDisplayName, ModelOption, ModelGroup } from '../models';
-export { MODEL_GROUPS, getModelDisplayName };
-export type { ModelOption, ModelGroup };
-
 export const ChatInput: React.FC<ChatInputProps> = ({
   onSendMessage,
-  selectedModel,
-  onSelectModel,
   disabled = false,
   isStreaming = false,
   onAbort,
 }) => {
   const [text, setText] = useState<string>('');
-  const [showModelDropdown, setShowModelDropdown] = useState<boolean>(false);
   const [showActionsMenu, setShowActionsMenu] = useState<boolean>(false);
-  const [modelGroups, setModelGroups] = useState<ModelGroup[]>(MODEL_GROUPS);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
   const actionsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    let isMounted = true;
-    const fetchModels = async () => {
-      try {
-        const HONO_API_URL = import.meta.env.VITE_HONO_API_URL || 'http://localhost:8787';
-        const res = await fetch(`${HONO_API_URL}/api/chat/models`);
-        if (res.ok) {
-          const data = await res.json();
-          if (isMounted && Array.isArray(data.modelGroups) && data.modelGroups.length > 0) {
-            setModelGroups(data.modelGroups);
-          }
-        }
-      } catch (err) {
-        // Fall back to local MODEL_GROUPS from ../models
-      }
-    };
-    fetchModels();
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  useEffect(() => {
     const handleClickOutside = (event: MouseEvent | TouchEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setShowModelDropdown(false);
-      }
       if (actionsRef.current && !actionsRef.current.contains(event.target as Node)) {
         setShowActionsMenu(false);
       }
     };
 
-    if (showModelDropdown || showActionsMenu) {
+    if (showActionsMenu) {
       document.addEventListener('mousedown', handleClickOutside);
       document.addEventListener('touchstart', handleClickOutside);
     }
@@ -71,11 +35,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('touchstart', handleClickOutside);
     };
-  }, [showModelDropdown, showActionsMenu]);
-
-  const allModels = modelGroups.flatMap((group) => group.models);
-  const activeModelOption = allModels.find((m) => m.id === selectedModel);
-  const activeLabel = activeModelOption ? activeModelOption.name : getModelDisplayName(selectedModel);
+  }, [showActionsMenu]);
 
   const handleSubmit = (): void => {
     if (!text.trim() || disabled) return;
@@ -136,9 +96,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                 className={`card-tool-box mobile-plus-btn ${showActionsMenu ? 'active' : ''}`}
                 title="Add attachment or action"
                 aria-label="Add attachment or action"
-                onClick={() => {
+                  onClick={() => {
                   setShowActionsMenu((prev) => !prev);
-                  setShowModelDropdown(false);
                 }}
               >
                 <Plus size={18} className={`plus-icon ${showActionsMenu ? 'rotated' : ''}`} />
@@ -164,44 +123,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           </div>
 
           <div className="card-toolbar-right">
-            <div ref={dropdownRef} className="card-model-dropdown-container">
-              <button
-                className="card-model-select-btn"
-                onClick={() => setShowModelDropdown((previousState) => !previousState)}
-              >
-                <span>{activeLabel}</span>
-                <ChevronDown size={13} />
-              </button>
-
-              {showModelDropdown && (
-                <div className="card-model-dropdown-menu">
-                  {modelGroups.length === 0 ? (
-                    <div className="card-model-option" style={{ opacity: 0.6, fontStyle: 'italic' }}>
-                      Loading models...
-                    </div>
-                  ) : (
-                    modelGroups.map((group) => (
-                      <div key={group.provider} className="card-model-group">
-                        <div className="card-model-group-header">{group.provider}</div>
-                        {group.models.map((model) => (
-                          <div
-                            key={model.id}
-                            className={`card-model-option ${model.id === selectedModel ? 'active' : ''}`}
-                            onClick={() => {
-                              onSelectModel(model.id);
-                              setShowModelDropdown(false);
-                            }}
-                          >
-                            {model.name}
-                          </div>
-                        ))}
-                      </div>
-                    ))
-                  )}
-                </div>
-              )}
-            </div>
-
             {isStreaming ? (
               <button
                 className="card-send-btn active streaming-stop-btn"

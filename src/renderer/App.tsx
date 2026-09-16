@@ -1,17 +1,14 @@
 import React, { useState, useMemo, useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Sidebar } from './components/Sidebar';
-import { ChatHeaderBar, TurnItem } from './components/ChatHeaderBar';
+import type { TurnItem } from './components/ChatHeaderBar';
 import { RightSidebar } from './components/RightSidebar';
-import { MessageList } from './components/MessageList';
-import { ChatInput } from './components/ChatInput';
 import { CourseCreationModal } from './components/CourseCreationModal';
-import { LessonWorkspace } from './components/LessonWorkspace';
+import { MainView, MainViewKind } from './components/MainView';
 import { AnimationPreviewPage } from './components/preview/AnimationPreviewPage';
 import { AuthScreen } from './components/AuthScreen';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ChatMessage, Conversation, ThemeMode } from './types';
-import { getModelById } from './models';
 import { streamLLMMessage, fetchUserConversations } from './services/llmService';
 import { fetchUserCourses, UserCourseSummary } from './services/courseService';
 import './theme.css';
@@ -19,7 +16,6 @@ import './theme.css';
 const AppContent: React.FC = () => {
   const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const [theme, setTheme] = useState<ThemeMode>('dark');
-  const [selectedModel, setSelectedModel] = useState<string>('nvidia/nemotron-3-nano-30b-a3b');
   const [loadingMap, setLoadingMap] = useState<Record<string, boolean>>({});
   const [streamingMap, setStreamingMap] = useState<Record<string, boolean>>({});
   const [isMobile, setIsMobile] = useState<boolean>(() => typeof window !== 'undefined' && window.innerWidth < 768);
@@ -35,6 +31,7 @@ const AppContent: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'chats' | 'learning' | 'docs' | 'tools' | 'plugins'>('chats');
   const [userCourses, setUserCourses] = useState<UserCourseSummary[]>([]);
   const [isCourseModalOpen, setIsCourseModalOpen] = useState<boolean>(false);
+  const [pendingSkillTopic, setPendingSkillTopic] = useState<string | null>(null);
   const [showAnimationPreview, setShowAnimationPreview] = useState<boolean>(false);
   const [activeCourseId, setActiveCourseId] = useState<string>('');
   const [activeLessonId, setActiveLessonId] = useState<string>('');
@@ -129,7 +126,6 @@ const AppContent: React.FC = () => {
   }, [location.pathname]);
 
   const activeRequestIdRef = useRef<Record<string, string>>({});
-  const chatBodyRef = useRef<HTMLDivElement>(null);
 
   const isLoading = Boolean(loadingMap[activeId]);
   const isStreaming = Boolean(streamingMap[activeId]);
@@ -325,12 +321,9 @@ const AppContent: React.FC = () => {
       setActiveTurnIndex(Math.max(0, newTurnIndex));
 
       try {
-        const modelObj = getModelById(selectedModel);
         await streamLLMMessage(
           requestId,
           apiPayload,
-          selectedModel,
-          modelObj?.providerSlug,
           {
             onChunk: (chunk: string) => {
               setLoadingMap((prev) => ({ ...prev, [currentConvId]: false }));
@@ -422,7 +415,7 @@ const AppContent: React.FC = () => {
         delete activeRequestIdRef.current[currentConvId];
       }
     },
-    [activeId, conversations, selectedModel, navigate, isAuthenticated, guestMsgCount]
+    [activeId, conversations, navigate, isAuthenticated, guestMsgCount]
   );
 
   const handleNewChat = useCallback((): void => {
@@ -460,6 +453,22 @@ const AppContent: React.FC = () => {
     },
     []
   );
+
+  const handleOpenCreateSkill = useCallback((topic?: string) => {
+    if (!isAuthenticated) {
+      navigate('/login');
+      return;
+    }
+    setPendingSkillTopic(topic || null);
+    setIsCourseModalOpen(true);
+  }, [isAuthenticated, navigate]);
+
+  const handleCloseCourseModal = useCallback(() => {
+    setIsCourseModalOpen(false);
+    setPendingSkillTopic(null);
+  }, []);
+
+  const mainView: MainViewKind = activeTab === 'learning' ? (activeLessonId ? 'lesson' : 'skills') : 'chat';
 
   const activeTurnAssistantMessage = useMemo(() => {
     const userMsgs = currentConversation.messages.filter((m) => m.role === 'user');
@@ -565,7 +574,6 @@ const AppContent: React.FC = () => {
           handleSelectConversation(id);
         }}
         onNewChat={handleNewChat}
-        selectedModel={selectedModel}
         isLeftSidebarVisible={showLeftSidebar}
         onToggleSidebar={handleToggleLeftSidebar}
         userCourses={userCourses}
@@ -574,7 +582,7 @@ const AppContent: React.FC = () => {
             navigate('/login');
             return;
           }
-          setIsCourseModalOpen(true);
+          handleOpenCreateSkill();
         }}
         onSelectLesson={handleSelectLesson}
         activeLessonId={activeLessonId}
@@ -585,55 +593,63 @@ const AppContent: React.FC = () => {
 
       <div className="main-content">
         <div className="main-workspace-area">
-          <div className="chat-workspace-card">
-            <ChatHeaderBar
-              title={activeTab === 'learning' && activeLessonId ? (activeLessonTitle || 'Lesson View') : currentConversation.title}
-              turns={activeTab === 'learning' && activeLessonId ? [] : turns}
-              activeTurnIndex={activeTurnIndex}
-              onSelectTurn={handleSelectTurn}
-              onToggleContents={handleToggleContents}
-              hasMessages={
-                activeTab === 'learning' && activeLessonId
-                  ? Boolean(activeLessonMarkdown || (activeLessonId && lessonCache[activeLessonId]) || activeLessonMeta?.hasContent)
-                  : currentConversation.messages.length > 0
-              }
-              theme={theme}
-              onToggleTheme={toggleTheme}
-              isLeftSidebarVisible={showLeftSidebar}
-              onToggleLeftSidebar={handleToggleLeftSidebar}
-              onOpenAuthModal={() => navigate('/login')}
-            />
-
-            <div className="chat-card-body" ref={chatBodyRef}>
-              {activeTab === 'learning' && activeLessonId ? (
-                <LessonWorkspace
-                  lessonId={activeLessonId}
-                  selectedModel={selectedModel}
-                  initialHasContent={activeLessonMeta ? activeLessonMeta.hasContent : undefined}
-                  lessonTitle={activeLessonMeta ? activeLessonMeta.title : undefined}
-                  cachedMarkdown={activeLessonId ? lessonCache[activeLessonId] : undefined}
-                  onLessonContentLoaded={handleLessonContentLoaded}
-                  onLessonGenerated={handleLessonGenerated}
-                />
-              ) : (
-                <MessageList
-                  messages={currentConversation.messages}
-                  isLoading={isLoading}
-                  isStreaming={isStreaming}
-                  onSelectPrompt={handleSendMessage}
-                />
-              )}
-            </div>
-
-            <ChatInput
-              onSendMessage={handleSendMessage}
-              selectedModel={selectedModel}
-              onSelectModel={setSelectedModel}
-              disabled={isLoading || isStreaming}
-              isStreaming={isLoading || isStreaming}
-              onAbort={handleAbortStream}
-            />
-          </div>
+          <MainView
+            view={mainView}
+            chat={{
+              title: currentConversation.title,
+              turns,
+              activeTurnIndex,
+              onSelectTurn: handleSelectTurn,
+              onToggleContents: handleToggleContents,
+              hasMessages: currentConversation.messages.length > 0,
+              theme,
+              onToggleTheme: toggleTheme,
+              isLeftSidebarVisible: showLeftSidebar,
+              onToggleLeftSidebar: handleToggleLeftSidebar,
+              onOpenAuthModal: () => navigate('/login'),
+              messages: currentConversation.messages,
+              isLoading,
+              isStreaming,
+              onSelectPrompt: handleSendMessage,
+              onSendMessage: handleSendMessage,
+              inputDisabled: isLoading || isStreaming,
+              inputStreaming: isLoading || isStreaming,
+              onAbort: handleAbortStream,
+            }}
+            skills={{
+              theme,
+              onToggleTheme: toggleTheme,
+              isLeftSidebarVisible: showLeftSidebar,
+              onToggleLeftSidebar: handleToggleLeftSidebar,
+              onOpenAuthModal: () => navigate('/login'),
+              onSelectTurn: handleSelectTurn,
+              onToggleContents: handleToggleContents,
+              userCourses,
+              onCreateSkill: handleOpenCreateSkill,
+              onOpenCourse: handleSelectLesson,
+            }}
+            lesson={{
+              title: activeLessonTitle || 'Lesson View',
+              hasMessages: Boolean(
+                activeLessonMarkdown ||
+                  (activeLessonId && lessonCache[activeLessonId]) ||
+                  activeLessonMeta?.hasContent
+              ),
+              theme,
+              onToggleTheme: toggleTheme,
+              isLeftSidebarVisible: showLeftSidebar,
+              onToggleLeftSidebar: handleToggleLeftSidebar,
+              onOpenAuthModal: () => navigate('/login'),
+              onSelectTurn: handleSelectTurn,
+              onToggleContents: handleToggleContents,
+              lessonId: activeLessonId,
+              initialHasContent: activeLessonMeta ? activeLessonMeta.hasContent : undefined,
+              lessonTitle: activeLessonMeta ? activeLessonMeta.title : undefined,
+              cachedMarkdown: activeLessonId ? lessonCache[activeLessonId] : undefined,
+              onLessonContentLoaded: handleLessonContentLoaded,
+              onLessonGenerated: handleLessonGenerated,
+            }}
+          />
 
           <RightSidebar
             isVisible={showRightSidebar}
@@ -650,10 +666,10 @@ const AppContent: React.FC = () => {
 
       <CourseCreationModal
         isOpen={isCourseModalOpen}
-        onClose={() => setIsCourseModalOpen(false)}
+        onClose={handleCloseCourseModal}
         onCourseCreated={handleCourseCreated}
-        selectedModel={selectedModel}
         onOpenAnimationPreview={() => setShowAnimationPreview(true)}
+        initialTopic={pendingSkillTopic}
       />
 
       {(showAnimationPreview || location.pathname === '/animation-preview') && (

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { FALLBACK_MODEL_CHAIN } from '../../models';
 
 export const CourseCurriculumSchema = z.object({
   courseTitle: z.string().describe('Engaging and clear title for the generated course'),
@@ -26,8 +27,6 @@ export interface GenerateCurriculumParams {
   level: string;
   goal: string;
   style: string;
-  modelName?: string;
-  providerSlug?: string;
 }
 
 export interface GenerateLessonContentParams {
@@ -37,8 +36,6 @@ export interface GenerateLessonContentParams {
   summaryObjectives: string;
   level: string;
   style: string;
-  modelName?: string;
-  providerSlug?: string;
 }
 
 export class CourseGenerator {
@@ -46,8 +43,6 @@ export class CourseGenerator {
     const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
     const apiToken = process.env.CLOUDFLARE_API_TOKEN;
     const gatewayId = process.env.CLOUDFLARE_GATEWAY_ID || 'ai-engineer';
-    const providerSlug = params.providerSlug || 'custom-nvidia';
-    const selectedModel = params.modelName || 'nvidia/nemotron-3-nano-30b-a3b';
 
     if (!accountId || !apiToken) {
       throw new Error('Cloudflare API credentials missing in environment.');
@@ -90,29 +85,41 @@ export class CourseGenerator {
       `- Preferred Explanation Style: ${params.style}\n\n` +
       `Generate the full structured course curriculum JSON matching the exact schema specified above.`;
 
-    const gatewayUrl = `https://gateway.ai.cloudflare.com/v1/${accountId}/${gatewayId}/${providerSlug}/v1/chat/completions`;
+    let lastError = 'Unknown error';
+    let lastStatus = 500;
+    let payload: any = null;
 
-    const response = await fetch(gatewayUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'cf-aig-authorization': `Bearer ${apiToken}`,
-      },
-      body: JSON.stringify({
-        model: selectedModel,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
-        ],
-      }),
-    });
+    for (const candidate of FALLBACK_MODEL_CHAIN) {
+      const gatewayUrl = `https://gateway.ai.cloudflare.com/v1/${accountId}/${gatewayId}/${candidate.providerSlug}/v1/chat/completions`;
 
-    if (!response.ok) {
-      const errText = await response.text().catch(() => 'Unknown error');
-      throw new Error(`AI Gateway Error [${response.status}]: ${errText}`);
+      const response = await fetch(gatewayUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'cf-aig-authorization': `Bearer ${apiToken}`,
+        },
+        body: JSON.stringify({
+          model: candidate.id,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt },
+          ],
+        }),
+      });
+
+      if (response.ok) {
+        payload = (await response.json()) as any;
+        break;
+      }
+
+      lastStatus = response.status;
+      lastError = await response.text().catch(() => 'Unknown error');
+      console.error(`[CourseGenerator] Gateway error [${response.status}] model ${candidate.id}: ${lastError}`);
     }
 
-    const payload = (await response.json()) as any;
+    if (!payload) {
+      throw new Error(`AI Gateway Error [${lastStatus}]: ${lastError}`);
+    }
     let rawContent = payload.choices?.[0]?.message?.content;
     if (!rawContent) {
       throw new Error('Empty response received from AI model');
@@ -142,8 +149,6 @@ export class CourseGenerator {
     const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
     const apiToken = process.env.CLOUDFLARE_API_TOKEN;
     const gatewayId = process.env.CLOUDFLARE_GATEWAY_ID || 'ai-engineer';
-    const providerSlug = params.providerSlug || 'custom-nvidia';
-    const selectedModel = params.modelName || 'nvidia/nemotron-3-nano-30b-a3b';
 
     if (!accountId || !apiToken) {
       throw new Error('Cloudflare API credentials missing in environment.');
@@ -168,29 +173,41 @@ export class CourseGenerator {
       `[Preferred Style]: ${params.style}\n\n` +
       `Write the complete interactive lesson markdown guide now.`;
 
-    const gatewayUrl = `https://gateway.ai.cloudflare.com/v1/${accountId}/${gatewayId}/${providerSlug}/v1/chat/completions`;
+    let lastError = 'Unknown error';
+    let lastStatus = 500;
+    let payload: any = null;
 
-    const response = await fetch(gatewayUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'cf-aig-authorization': `Bearer ${apiToken}`,
-      },
-      body: JSON.stringify({
-        model: selectedModel,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
-        ],
-      }),
-    });
+    for (const candidate of FALLBACK_MODEL_CHAIN) {
+      const gatewayUrl = `https://gateway.ai.cloudflare.com/v1/${accountId}/${gatewayId}/${candidate.providerSlug}/v1/chat/completions`;
 
-    if (!response.ok) {
-      const errText = await response.text().catch(() => 'Unknown error');
-      throw new Error(`AI Gateway Error [${response.status}]: ${errText}`);
+      const response = await fetch(gatewayUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'cf-aig-authorization': `Bearer ${apiToken}`,
+        },
+        body: JSON.stringify({
+          model: candidate.id,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt },
+          ],
+        }),
+      });
+
+      if (response.ok) {
+        payload = (await response.json()) as any;
+        break;
+      }
+
+      lastStatus = response.status;
+      lastError = await response.text().catch(() => 'Unknown error');
+      console.error(`[CourseGenerator] Lesson gateway error [${response.status}] model ${candidate.id}: ${lastError}`);
     }
 
-    const payload = (await response.json()) as any;
+    if (!payload) {
+      throw new Error(`AI Gateway Error [${lastStatus}]: ${lastError}`);
+    }
     const content = payload.choices?.[0]?.message?.content;
     if (!content) {
       throw new Error('Empty response received for lesson generation');

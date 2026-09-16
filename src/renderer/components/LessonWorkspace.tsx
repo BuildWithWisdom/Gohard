@@ -2,11 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { BookOpen, Sparkles, AlertCircle, RefreshCw, Play } from 'lucide-react';
 import { DetailedLessonContent, fetchLessonContent } from '../services/courseService';
 import { FormattedResponse } from './FormattedResponse';
-import { getModelById } from '../models';
 
 interface LessonWorkspaceProps {
   lessonId: string;
-  selectedModel: string;
   initialHasContent?: boolean;
   lessonTitle?: string;
   cachedMarkdown?: string;
@@ -16,7 +14,6 @@ interface LessonWorkspaceProps {
 
 export const LessonWorkspace: React.FC<LessonWorkspaceProps> = React.memo(({
   lessonId,
-  selectedModel,
   initialHasContent,
   lessonTitle,
   cachedMarkdown,
@@ -32,8 +29,7 @@ export const LessonWorkspace: React.FC<LessonWorkspaceProps> = React.memo(({
     setIsLoading(true);
     setErrorMsg(null);
     try {
-      const modelObj = getModelById(selectedModel);
-      const data = await fetchLessonContent(lessonId, selectedModel, modelObj?.providerSlug, false);
+      const data = await fetchLessonContent(lessonId, false);
       setLessonData(data);
       if (data.contentMarkdown) {
         onLessonContentLoaded?.(data.contentMarkdown);
@@ -52,8 +48,7 @@ export const LessonWorkspace: React.FC<LessonWorkspaceProps> = React.memo(({
     setIsGenerating(true);
     setErrorMsg(null);
     try {
-      const modelObj = getModelById(selectedModel);
-      const data = await fetchLessonContent(lessonId, selectedModel, modelObj?.providerSlug, true);
+      const data = await fetchLessonContent(lessonId, true);
       setLessonData(data);
       onLessonContentLoaded?.(data.contentMarkdown || '');
       onLessonGenerated?.(lessonId, data.contentMarkdown || '');
@@ -103,7 +98,7 @@ export const LessonWorkspace: React.FC<LessonWorkspaceProps> = React.memo(({
     }
 
     loadLessonMeta();
-  }, [lessonId, initialHasContent, cachedMarkdown, selectedModel]);
+  }, [lessonId, initialHasContent, cachedMarkdown]);
 
   const hasContent = Boolean(lessonData?.contentMarkdown && lessonData.contentMarkdown.trim().length > 0);
 

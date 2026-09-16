@@ -70,8 +70,6 @@ export async function generateCourse(params: {
   goal?: string;
   style?: string;
   userId?: string;
-  modelName?: string;
-  providerSlug?: string;
 }) {
   const targetUrl = `${HONO_API_URL}/api/courses/generate`;
   console.log('[courseService] Requesting course generation:', targetUrl, params);
@@ -97,13 +95,9 @@ export async function generateCourse(params: {
 
 export async function fetchLessonContent(
   lessonId: string,
-  modelName?: string,
-  providerSlug?: string,
   generate: boolean = false
 ): Promise<DetailedLessonContent> {
   const params = new URLSearchParams();
-  if (modelName) params.append('modelName', modelName);
-  if (providerSlug) params.append('providerSlug', providerSlug);
   if (generate) params.append('generate', 'true');
 
   const queryString = params.toString() ? `?${params.toString()}` : '';

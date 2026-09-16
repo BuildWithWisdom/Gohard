@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { memoryManager } from './memoryManager';
+import { ANALYST_MODEL_CHAIN } from '../../models';
 
 export const MemoryExtractionSchema = z.object({
   hasObservation: z
@@ -41,8 +42,6 @@ export interface AnalyzeTurnParams {
   courseId?: string;
   userMessage: string;
   assistantResponse: string;
-  modelName?: string;
-  providerSlug?: string;
 }
 
 export class AnalystEngine {
@@ -50,8 +49,6 @@ export class AnalystEngine {
     const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
     const apiToken = process.env.CLOUDFLARE_API_TOKEN;
     const gatewayId = process.env.CLOUDFLARE_GATEWAY_ID || 'ai-engineer';
-    const providerSlug = params.providerSlug || 'custom-stepfun';
-    const selectedModel = params.modelName || 'step-3.7-flash';
 
     if (!accountId || !apiToken) {
       console.warn('[AnalystEngine] Missing Cloudflare credentials. Memory extraction skipped.');
@@ -76,29 +73,34 @@ export class AnalystEngine {
       { role: 'user', content: `[User Message]: ${params.userMessage}\n[Assistant Response]: ${params.assistantResponse}` },
     ];
 
-    const gatewayUrl = `https://gateway.ai.cloudflare.com/v1/${accountId}/${gatewayId}/${providerSlug}/v1/chat/completions`;
-
     try {
-      const response = await fetch(gatewayUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'cf-aig-authorization': `Bearer ${apiToken}`,
-        },
-        body: JSON.stringify({
-          model: selectedModel,
-          messages: promptMessages,
-          response_format: { type: 'json_object' },
-        }),
-      });
+      let rawText: string | null = null;
 
-      if (!response.ok) {
-        console.error(`[AnalystEngine] Gateway error [${response.status}]`);
-        return;
+      for (const candidate of ANALYST_MODEL_CHAIN) {
+        const gatewayUrl = `https://gateway.ai.cloudflare.com/v1/${accountId}/${gatewayId}/${candidate.providerSlug}/v1/chat/completions`;
+        const response = await fetch(gatewayUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'cf-aig-authorization': `Bearer ${apiToken}`,
+          },
+          body: JSON.stringify({
+            model: candidate.id,
+            messages: promptMessages,
+            response_format: { type: 'json_object' },
+          }),
+        });
+
+        if (!response.ok) {
+          console.error(`[AnalystEngine] Gateway error [${response.status}] model ${candidate.id}`);
+          continue;
+        }
+
+        const jsonPayload = (await response.json()) as any;
+        rawText = jsonPayload.choices?.[0]?.message?.content;
+        if (rawText) break;
       }
 
-      const jsonPayload = (await response.json()) as any;
-      const rawText = jsonPayload.choices?.[0]?.message?.content;
       if (!rawText) return;
 
       const parsedJson = JSON.parse(rawText);

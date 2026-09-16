@@ -9,8 +9,6 @@ export const createCourseSchema = z.object({
   goal: z.string().default('Master practical skills'),
   style: z.string().default('hands_on_lab_first'),
   userId: z.string().optional(),
-  modelName: z.string().optional(),
-  providerSlug: z.string().optional(),
 });
 
 export class CourseController {
@@ -69,10 +67,8 @@ export class CourseController {
       if (!lessonId) {
         return c.json({ error: 'Missing lesson ID' }, 400);
       }
-      const modelName = c.req.query('modelName');
-      const providerSlug = c.req.query('providerSlug');
       const generate = c.req.query('generate') === 'true';
-      const lesson = await courseService.getOrGenerateLessonContent(lessonId, modelName, providerSlug, generate);
+      const lesson = await courseService.getOrGenerateLessonContent(lessonId, generate);
       return c.json({ lesson });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to load lesson';

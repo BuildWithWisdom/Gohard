@@ -1,7 +1,13 @@
 import { Context, Next } from 'hono';
 import { verify } from 'hono/jwt';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'openmanus_jwt_secret_key_2026_super_secure';
+const JWT_SECRET: string = (() => {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error('FATAL: JWT_SECRET environment variable is missing.');
+  }
+  return secret;
+})();
 
 export interface JwtUserPayload {
   id: string;

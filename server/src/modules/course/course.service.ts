@@ -163,8 +163,6 @@ export class CourseService {
 
   async getOrGenerateLessonContent(
     lessonId: string,
-    modelName?: string,
-    providerSlug?: string,
     generate: boolean = false
   ) {
     if (!generate && lessonMemoryCache.has(lessonId)) {
@@ -224,8 +222,6 @@ export class CourseService {
       summaryObjectives: `Objectives for ${lesson.title}`,
       level: 'intermediate',
       style: 'hands_on_lab_first',
-      modelName,
-      providerSlug,
     });
 
     const updated = await prisma.moduleLesson.update({

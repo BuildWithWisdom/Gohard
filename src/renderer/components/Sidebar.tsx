@@ -26,7 +26,6 @@ import {
 } from 'lucide-react';
 import GohardLogo from './GohardLogo';
 import { Conversation } from '../types';
-import { getModelDisplayName } from '../models';
 import { UserCourseSummary } from '../services/courseService';
 import { useAuth } from '../context/AuthContext';
 
@@ -35,7 +34,6 @@ interface SidebarProps {
   activeId: string;
   onSelectConversation: (id: string) => void;
   onNewChat: () => void;
-  selectedModel: string;
   isLeftSidebarVisible?: boolean;
   onToggleSidebar?: () => void;
   userCourses?: UserCourseSummary[];
@@ -52,7 +50,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   activeId,
   onSelectConversation,
   onNewChat,
-  selectedModel,
   isLeftSidebarVisible = true,
   onToggleSidebar,
   userCourses = [],

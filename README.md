@@ -1,210 +1,163 @@
-# OpenManus
+# Gohard AI
 
-> A production-quality desktop AI agent built from first principles as part of an AI Engineering learning journey.
+<div align="center">
 
----
+  <h1>🧠 Gohard AI</h1>
+  <p><strong>An Adaptive 1-on-1 AI Educator & Autonomous Learning Companion</strong></p>
 
-## Vision
+  [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+  [![React](https://img.shields.io/badge/React-18-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://reactjs.org/)
+  [![Vite](https://img.shields.io/badge/Vite-5.0-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev/)
+  [![Hono](https://img.shields.io/badge/Hono-REST_API-E36002?style=for-the-badge&logo=hono&logoColor=white)](https://hono.dev/)
+  [![Prisma](https://img.shields.io/badge/Prisma-ORM-2D3748?style=for-the-badge&logo=prisma&logoColor=white)](https://www.prisma.io/)
+  [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Neon_DB-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](https://neon.tech/)
+  [![Cloudflare AI Gateway](https://img.shields.io/badge/Cloudflare-AI_Gateway-F38020?style=for-the-badge&logo=cloudflare&logoColor=white)](https://ai.cloudflare.com/)
 
-OpenManus is a long-term educational project that grows alongside an AI Engineering course.
-
-Rather than building many disconnected demos, this project evolves module by module into a capable desktop AI agent inspired by systems such as Manus, ChatGPT Desktop, Claude Desktop, and Cursor.
-
-Every feature added to the project directly corresponds to concepts learned in the course.
-
-The goal is not simply to build an AI application—it is to understand the engineering decisions behind modern AI systems.
-
----
-
-# Goals
-
-By the end of the project, OpenManus will be able to:
-
-- Understand natural language
-- Support multiple LLM providers
-- Maintain long-term memory
-- Search documents using Retrieval-Augmented Generation (RAG)
-- Use external tools
-- Browse the web
-- Execute code safely
-- Plan and perform multi-step tasks
-- Operate as an autonomous AI agent
-- Run as a cross-platform desktop application
+</div>
 
 ---
 
-# Technology Stack
+## 🌟 Overview
 
-Current stack:
+**Gohard AI** is not just another generic chatbot—it is an **Adaptive 1-on-1 AI Educator**. 
 
-- TypeScript
-- React
-- Electron
-- Node.js
-- Git
-- GitHub
-
-Additional technologies will be introduced throughout the course only when they solve a specific engineering problem.
-
-Examples include:
-
-- OpenAI SDK
-- Anthropic SDK
-- Google Gemini SDK
-- Vector databases
-- MCP (Model Context Protocol)
-- Local models
-- SQLite
-- Langfuse
-- Playwright
+Engineered from first principles, Gohard dynamically analyzes a learner's knowledge depth, pace, and confidence to deliver custom analogies, mental models, and step-by-step interactive lessons.
 
 ---
 
-# Project Philosophy
+## ✨ Key Features
 
-This project follows several engineering principles.
-
-## Learn Before Building
-
-Every feature is implemented only after understanding the underlying theory.
-
-Architecture comes before implementation.
-
----
-
-## First Principles
-
-Every engineering decision should answer:
-
-- Why does this exist?
-- What problem does it solve?
-- What alternatives exist?
-- Why was this solution chosen?
+- 🧠 **Adaptive Teaching Engine**: Background memory extraction analyzes learner interactions to adjust explanation styles (analogy-driven, Socratic, code-first) and knowledge pacing.
+- 💬 **Interactive Master Educator**: Designed to teach complex topics intuitively rather than regurgitating raw text answers.
+- ⚡ **Multi-Model LLM Gateway**: Powered by Cloudflare AI Gateway for ultra-fast, multi-provider inference (NVIDIA Nemotron, Qwen, Llama, DeepSeek).
+- 🔐 **Secure Authentication**: Complete JWT-based authentication flow with `bcrypt` password hashing, protected API middleware, and zero-trust parameter scoping.
+- 🎟️ **ChatGPT-Style Guest Mode**: Seamless 1-message guest experience allowing instant trial before prompting account creation.
+- 📚 **Course & Lesson Workspace**: Custom workspace featuring rich Markdown formatting, syntax highlighting, and interactive Mermaid diagram rendering.
+- 🌐 **Clean Glassmorphism UI**: Dark mode UI built with custom CSS design tokens, smooth animations, and responsive sidebars.
 
 ---
 
-## Modular Design
+## 🏗️ Architecture Overview
 
-The project will be built as a collection of independent components.
+```mermaid
+graph TD
+    Client["🖥️ React + Vite Frontend"]
+    Server["⚡ Hono REST API Server"]
+    Auth["🔐 JWT Auth Middleware"]
+    MemoryEngine["🧠 Adaptive Analyst Memory Engine"]
+    DB[("🐘 Neon PostgreSQL (Prisma ORM)")]
+    CFGateway["🌐 Cloudflare AI Gateway"]
 
-Examples include:
-
-- UI
-- Agent Core
-- Memory
-- Tool System
-- RAG
-- Planning
-- LLM Providers
-
-Each component should be replaceable without affecting the rest of the system.
-
----
-
-# Planned Architecture
-
-```text
-                User
-                  │
-                  ▼
-          React Desktop UI
-                  │
-                  ▼
-            Electron Shell
-                  │
-                  ▼
-             Agent Core
-        ┌─────────┼─────────┐
-        ▼         ▼         ▼
-   LLM Providers Memory     Tools
-                  │
-                  ▼
-            Knowledge Base
+    Client -->|REST / JWT Header| Server
+    Server --> Auth
+    Auth -->|Verified Payload| Server
+    Server --> DB
+    Server --> MemoryEngine
+    MemoryEngine -->|Structured Profile| DB
+    Server -->|Multi-Model Stream| CFGateway
 ```
 
-This architecture will evolve throughout the course.
+---
+
+## 🛠️ Technology Stack
+
+### **Frontend**
+- **Framework**: React 18 + Vite
+- **Styling**: Modern Vanilla CSS (Design Tokens, Glassmorphism, CSS Variables)
+- **Icons**: Lucide React
+- **Rendering**: Custom Markdown Engine + Prism Syntax Highlighter + Mermaid Diagram Visualizer
+
+### **Backend API**
+- **Framework**: Hono (Node.js runtime)
+- **Database**: PostgreSQL (Neon Cloud) via Prisma ORM
+- **Authentication**: JWT (`hono/jwt`) + `bcryptjs` password hashing
+- **AI Gateway**: Cloudflare AI Gateway (`@cf/baai/bge-small-en-v1.5` embeddings)
 
 ---
 
-# Roadmap
+## 🚀 Getting Started
 
-## Module 0
+### Prerequisites
+- **Node.js**: v18.0.0 or higher
+- **npm**: v9.0.0 or higher
+- **PostgreSQL Database** (e.g. Neon PostgreSQL)
 
-- Project setup
-- Repository creation
-- Architecture
-- Technology decisions
+### 1. Clone & Install Dependencies
 
-Status: ✅
+```bash
+# Clone the repository
+git clone https://github.com/BuildWithWisdom/Gohard.git
+cd Gohard
+
+# Install frontend dependencies
+npm install
+
+# Install backend dependencies
+cd server
+npm install
+```
+
+### 2. Environment Variables Setup
+
+Create a `.env` file in the `/server` directory:
+
+```env
+DATABASE_URL="postgresql://user:password@your-neon-host/neondb?sslmode=require"
+CLOUDFLARE_ACCOUNT_ID="your_account_id"
+CLOUDFLARE_API_TOKEN="your_api_token"
+CLOUDFLARE_GATEWAY_ID="ai-engineer"
+JWT_SECRET="your_cryptographically_secure_jwt_secret_key"
+```
+
+### 3. Database Migration
+
+```bash
+cd server
+npx prisma db push
+```
+
+### 4. Run Development Servers
+
+```bash
+# Start backend server (runs on http://localhost:3000)
+cd server
+npm run dev
+
+# In a separate terminal, start frontend dev server
+npm run dev
+```
 
 ---
 
-## Future Modules
-
-- LLM Fundamentals
-- Prompt Engineering
-- Structured Outputs
-- AI APIs
-- Embeddings
-- Memory
-- Retrieval-Augmented Generation (RAG)
-- Tool Calling
-- Model Context Protocol (MCP)
-- Agent Engineering
-- Agent Harness
-- Production Deployment
-
----
-
-# Version History
-
-| Version | Description |
-|----------|-------------|
-| v0.1 | Initial architecture and project setup |
-
----
-
-# Repository Structure
-
-This structure will expand as the course progresses.
+## 📂 Project Structure
 
 ```
-openmanus/
-│
-├── docs/
+Gohard/
+├── index.html
 ├── src/
-├── assets/
-├── README.md
-├── package.json
-└── .gitignore
+│   └── renderer/
+│       ├── assets/            # Static images & logo assets
+│       ├── components/        # React UI components (Sidebar, AuthScreen, LessonWorkspace, GohardLogo)
+│       ├── context/           # React AuthContext & Global Providers
+│       ├── services/          # Client API services (authService, llmService, courseService)
+│       ├── App.tsx            # Main Application Layout & Router
+│       └── theme.css          # Core Design System & Tokens
+├── server/
+│   ├── prisma/                # Prisma DB Schema & Migrations
+│   ├── src/
+│   │   ├── db/                # Prisma Client Instance
+│   │   ├── modules/
+│   │   │   ├── auth/          # Auth Controller, Routes, Middleware & Service
+│   │   │   ├── chat/          # LLM Streaming Routes & Chat Controller
+│   │   │   ├── course/        # Course Generation & Lesson Services
+│   │   │   └── memory/        # Adaptive Analyst Memory & Vector Store
+│   │   └── index.ts           # Main Hono Server Entry Point
+│   └── package.json
+└── README.md
 ```
 
 ---
 
-# Course Integration
+## 📄 License
 
-This repository is the practical component of a complete AI Engineering course.
-
-Each completed module introduces new concepts and extends this project with production-quality implementations.
-
-Theory always comes before implementation.
-
----
-
-# Long-Term Goal
-
-By the end of this journey, OpenManus should demonstrate the core architectural patterns used by modern AI applications, including:
-
-- ChatGPT
-- Claude Desktop
-- Cursor
-- Manus
-- OpenHands
-
-The emphasis is on understanding *why* these systems are designed the way they are and applying those principles to build a maintainable, extensible, real-world AI agent.
-
----
-
-## License
-
-This project is licensed under the MIT License.
+This project is licensed under the [MIT License](LICENSE).

@@ -10,8 +10,6 @@ export const streamChatSchema = z.object({
       content: z.string(),
     })
   ),
-  modelName: z.string().optional(),
-  providerSlug: z.string().optional(),
   personaId: z.string().optional(),
   userId: z.string().optional(),
   courseId: z.string().optional(),

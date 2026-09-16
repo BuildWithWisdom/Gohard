@@ -3,7 +3,7 @@ import { env } from 'hono/adapter';
 import { prisma } from '../../db/client';
 import { buildSystemPrompt } from '../../prompts/promptBuilder';
 import { PersonaId } from '../../prompts/types';
-import { MODEL_GROUPS } from '../../models';
+import { FALLBACK_MODEL_CHAIN } from '../../models';
 import { Bindings } from '../../types';
 import { analystEngine } from '../memory/analystEngine';
 import { memoryManager } from '../memory/memoryManager';
@@ -15,8 +15,6 @@ export interface ChatMessagePayload {
 
 export interface StreamChatInput {
   messages: ChatMessagePayload[];
-  modelName?: string;
-  providerSlug?: string;
   personaId?: PersonaId;
   userId?: string;
   courseId?: string;
@@ -114,7 +112,7 @@ export class ChatService {
       params.title ||
       (params.userContent.length > 40 ? `${params.userContent.slice(0, 40)}...` : params.userContent) ||
       'New Chat';
-    const modelId = params.modelId || 'nvidia/nemotron-3-nano-30b-a3b';
+    const modelId = params.modelId || 'qwen3.7-plus';
 
     let conversationId = params.conversationId;
     if (!conversationId) {
@@ -185,10 +183,10 @@ export class ChatService {
       );
     }
 
-    const selectedModel = input.modelName || 'deepseek-ai/deepseek-v4-pro';
-    const allModels = MODEL_GROUPS.flatMap((group) => group.models);
-    const foundModel = allModels.find((m) => m.id === selectedModel);
-    const resolvedProviderSlug = input.providerSlug || foundModel?.providerSlug || 'custom-nvidia';
+    // Model is resolved server-side (Qwen-only, single default + fallback).
+    // Frontend is model-free and does not send selection.
+    const selectedModel = FALLBACK_MODEL_CHAIN[0].id;
+    const resolvedProviderSlug = FALLBACK_MODEL_CHAIN[0].providerSlug;
 
     console.log('[Hono Server] Incoming chat request:', { selectedModel, resolvedProviderSlug, messageCount: input.messages.length });
 
@@ -223,31 +221,45 @@ export class ChatService {
       ...sanitizedMessages,
     ];
 
-    const gatewayUrl = `https://gateway.ai.cloudflare.com/v1/${accountId}/${gatewayId}/${resolvedProviderSlug}/v1/chat/completions`;
-    console.log('[Hono Server] Dispatching to Gateway URL:', gatewayUrl);
-
     try {
-      const fetchResponse = await fetch(gatewayUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'cf-aig-authorization': `Bearer ${apiToken}`,
-        },
-        body: JSON.stringify({
-          model: selectedModel,
-          messages: messagesPayload,
-          stream: true,
-        }),
-      });
+      let fetchResponse: Response | null = null;
+      let activeModel = FALLBACK_MODEL_CHAIN[0].id;
+      let lastErrorText = 'Unknown gateway error';
+      let lastStatus = 500;
 
-      if (!fetchResponse.ok || !fetchResponse.body) {
-        const errorText = await fetchResponse.text().catch(() => 'Unknown gateway error');
-        console.error(`[Cloudflare AI Gateway Error Response]: Status ${fetchResponse.status} - ${errorText}`);
+      for (const candidate of FALLBACK_MODEL_CHAIN) {
+        const candidateUrl = `https://gateway.ai.cloudflare.com/v1/${accountId}/${gatewayId}/${candidate.providerSlug}/v1/chat/completions`;
+        console.log('[Hono Server] Dispatching to Gateway URL:', candidateUrl, 'model:', candidate.id);
+        const attempt = await fetch(candidateUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'cf-aig-authorization': `Bearer ${apiToken}`,
+          },
+          body: JSON.stringify({
+            model: candidate.id,
+            messages: messagesPayload,
+            stream: true,
+          }),
+        });
+
+        if (attempt.ok && attempt.body) {
+          fetchResponse = attempt;
+          activeModel = candidate.id;
+          break;
+        }
+
+        lastStatus = attempt.status;
+        lastErrorText = await attempt.text().catch(() => 'Unknown gateway error');
+        console.error(`[Cloudflare AI Gateway Error Response]: Status ${attempt.status} - ${lastErrorText} (model ${candidate.id})`);
+      }
+
+      if (!fetchResponse || !fetchResponse.body) {
         return c.json(
           {
-            error: `Cloudflare AI Gateway request failed [${fetchResponse.status}]: ${errorText}`,
+            error: `Cloudflare AI Gateway request failed [${lastStatus}]: ${lastErrorText}`,
           },
-          fetchResponse.status as any
+          lastStatus as any
         );
       }
 
@@ -266,7 +278,7 @@ export class ChatService {
         this.saveConversationMessages({
           conversationId: input.conversationId,
           userId,
-          modelId: selectedModel,
+          modelId: activeModel,
           userContent: lastUserMessage,
           assistantContent: accumulatedAssistantText,
         }).catch((err) => console.error('[Hono Server] Error persisting conversation messages:', err));
@@ -277,8 +289,6 @@ export class ChatService {
             courseId,
             userMessage: lastUserMessage,
             assistantResponse: accumulatedAssistantText,
-            modelName: selectedModel,
-            providerSlug: resolvedProviderSlug,
           })
           .catch((err) => console.error('[Hono Server] Background memory analysis error:', err));
       };
