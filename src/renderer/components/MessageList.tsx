@@ -104,6 +104,7 @@ interface MessageListProps {
   isLoading?: boolean;
   isStreaming?: boolean;
   onSelectPrompt?: (text: string) => void;
+  isLocked?: boolean;
 }
 
 const slugify = (text: string): string => {
@@ -471,7 +472,7 @@ const MessageRow = React.memo<MessageRowProps>(
 );
 
 export const MessageList: React.FC<MessageListProps> = React.memo(
-  ({ messages, isLoading, isStreaming, onSelectPrompt }) => {
+  ({ messages, isLoading, isStreaming, onSelectPrompt, isLocked = false }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null);
 
@@ -510,13 +511,14 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
     }, []);
 
     const handleSelectPromptFallback = (text: string) => {
+      if (isLocked) return;
       if (onSelectPrompt) {
         onSelectPrompt(text);
       }
     };
 
     if (messages.length === 0 && !isLoading) {
-      return <WelcomeState onSelectPrompt={handleSelectPromptFallback} />;
+      return <WelcomeState onSelectPrompt={handleSelectPromptFallback} disabled={isLocked} />;
     }
 
     let userTurnCounter = 0;

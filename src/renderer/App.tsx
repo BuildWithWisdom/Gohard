@@ -4,6 +4,7 @@ import { Sidebar } from './components/Sidebar';
 import type { TurnItem } from './components/ChatHeaderBar';
 import { RightSidebar } from './components/RightSidebar';
 import { CourseCreationModal } from './components/CourseCreationModal';
+import { DevelopmentNoticeModal } from './components/DevelopmentNoticeModal';
 import { MainView, MainViewKind } from './components/MainView';
 import { AnimationPreviewPage } from './components/preview/AnimationPreviewPage';
 import { AuthScreen } from './components/AuthScreen';
@@ -12,6 +13,10 @@ import { ChatMessage, Conversation, ThemeMode } from './types';
 import { streamLLMMessage, fetchUserConversations } from './services/llmService';
 import { fetchUserCourses, UserCourseSummary } from './services/courseService';
 import './theme.css';
+
+// While Gohard is under development, lock interactive features.
+// The dev notice popup explains this; chat send + course creation stay disabled.
+const APP_UNDER_DEVELOPMENT = true;
 
 const AppContent: React.FC = () => {
   const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
@@ -31,6 +36,7 @@ const AppContent: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'chats' | 'learning' | 'docs' | 'tools' | 'plugins'>('chats');
   const [userCourses, setUserCourses] = useState<UserCourseSummary[]>([]);
   const [isCourseModalOpen, setIsCourseModalOpen] = useState<boolean>(false);
+  const [showDevNotice, setShowDevNotice] = useState<boolean>(true);
   const [pendingSkillTopic, setPendingSkillTopic] = useState<string | null>(null);
   const [showAnimationPreview, setShowAnimationPreview] = useState<boolean>(false);
   const [activeCourseId, setActiveCourseId] = useState<string>('');
@@ -244,6 +250,7 @@ const AppContent: React.FC = () => {
 
   const handleSendMessage = useCallback(
     async (text: string): Promise<void> => {
+      if (APP_UNDER_DEVELOPMENT) return;
       if (!isAuthenticated && guestMsgCount >= 1) {
         navigate('/login');
         return;
@@ -428,6 +435,16 @@ const AppContent: React.FC = () => {
     }
   }, [navigate, isMobile]);
 
+  const handleBrowseSkills = useCallback((): void => {
+    setActiveCourseId('');
+    setActiveLessonId('');
+    setActiveTab('learning');
+    navigate('/');
+    if (isMobile) {
+      setShowLeftSidebar(false);
+    }
+  }, [navigate, isMobile]);
+
   const handleSelectLesson = useCallback(
     (courseId: string, lessonId: string) => {
       setActiveCourseId(courseId);
@@ -455,6 +472,7 @@ const AppContent: React.FC = () => {
   );
 
   const handleOpenCreateSkill = useCallback((topic?: string) => {
+    if (APP_UNDER_DEVELOPMENT) return;
     if (!isAuthenticated) {
       navigate('/login');
       return;
@@ -578,6 +596,7 @@ const AppContent: React.FC = () => {
         onToggleSidebar={handleToggleLeftSidebar}
         userCourses={userCourses}
         onOpenCourseModal={() => {
+          if (APP_UNDER_DEVELOPMENT) return;
           if (!isAuthenticated) {
             navigate('/login');
             return;
@@ -585,10 +604,12 @@ const AppContent: React.FC = () => {
           handleOpenCreateSkill();
         }}
         onSelectLesson={handleSelectLesson}
+        onBrowseSkills={handleBrowseSkills}
         activeLessonId={activeLessonId}
         activeTab={activeTab}
         onTabChange={setActiveTab}
         onOpenAuthModal={() => navigate('/login')}
+        isLocked={APP_UNDER_DEVELOPMENT}
       />
 
       <div className="main-content">
@@ -612,9 +633,10 @@ const AppContent: React.FC = () => {
               isStreaming,
               onSelectPrompt: handleSendMessage,
               onSendMessage: handleSendMessage,
-              inputDisabled: isLoading || isStreaming,
+              inputDisabled: APP_UNDER_DEVELOPMENT || isLoading || isStreaming,
               inputStreaming: isLoading || isStreaming,
               onAbort: handleAbortStream,
+              isLocked: APP_UNDER_DEVELOPMENT,
             }}
             skills={{
               theme,
@@ -627,6 +649,8 @@ const AppContent: React.FC = () => {
               userCourses,
               onCreateSkill: handleOpenCreateSkill,
               onOpenCourse: handleSelectLesson,
+              onCoursesChanged: loadCourses,
+              isLocked: APP_UNDER_DEVELOPMENT,
             }}
             lesson={{
               title: activeLessonTitle || 'Lesson View',
@@ -665,12 +689,14 @@ const AppContent: React.FC = () => {
       </div>
 
       <CourseCreationModal
-        isOpen={isCourseModalOpen}
+        isOpen={isCourseModalOpen && !APP_UNDER_DEVELOPMENT}
         onClose={handleCloseCourseModal}
         onCourseCreated={handleCourseCreated}
         onOpenAnimationPreview={() => setShowAnimationPreview(true)}
         initialTopic={pendingSkillTopic}
       />
+
+      <DevelopmentNoticeModal isOpen={showDevNotice} onClose={() => setShowDevNotice(false)} />
 
       {(showAnimationPreview || location.pathname === '/animation-preview') && (
         <AnimationPreviewPage

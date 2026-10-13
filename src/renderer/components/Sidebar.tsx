@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Bot,
   Brain,
@@ -18,7 +18,6 @@ import {
   Database,
   ChevronRight,
   ChevronDown,
-  ArrowLeft,
   BookOpen,
   User,
   UserCheck,
@@ -39,10 +38,12 @@ interface SidebarProps {
   userCourses?: UserCourseSummary[];
   onOpenCourseModal?: () => void;
   onSelectLesson?: (courseId: string, lessonId: string) => void;
+  onBrowseSkills?: () => void;
   activeLessonId?: string;
   activeTab?: 'chats' | 'learning' | 'docs' | 'tools' | 'plugins';
   onTabChange?: (tab: 'chats' | 'learning' | 'docs' | 'tools' | 'plugins') => void;
   onOpenAuthModal?: () => void;
+  isLocked?: boolean;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -55,13 +56,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
   userCourses = [],
   onOpenCourseModal,
   onSelectLesson,
+  onBrowseSkills,
   activeLessonId = '',
   activeTab = 'chats',
   onTabChange,
   onOpenAuthModal,
+  isLocked = false,
 }) => {
   const { user, isAuthenticated, logout } = useAuth();
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
+  const [showCourseSwitcher, setShowCourseSwitcher] = useState<boolean>(false);
   const [expandedModuleIds, setExpandedModuleIds] = useState<Record<string, boolean>>({});
   const [showProfileMenu, setShowProfileMenu] = useState<boolean>(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
@@ -95,8 +99,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }
   }, [activeLessonId, userCourses]);
 
-  const displayCourses = userCourses;
+  const displayCourses = userCourses.filter((course) => !course.isCompleted);
   const selectedCourse = displayCourses.find((c) => c.id === selectedCourseId);
+
+  // Land where the work is: the module holding the first incomplete lesson
+  // starts expanded, the rest start collapsed. Explicit toggles win.
+  const resumeModuleId = useMemo(() => {
+    if (!selectedCourse) return null;
+    for (const mod of selectedCourse.modules || []) {
+      if ((mod.lessons || []).some((les) => !les.isCompleted)) return mod.id;
+    }
+    return selectedCourse.modules?.[0]?.id ?? null;
+  }, [selectedCourse]);
 
   const toggleModuleExpand = (moduleId: string) => {
     setExpandedModuleIds((prev) => ({
@@ -340,14 +354,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <div className="brand-group">
                 <span className="brand-name">Gohard</span>
               </div>
-              <button
-                className="sidebar-toggle-btn"
-                title="Collapse Sidebar"
-                onClick={onToggleSidebar}
-              >
-                <PanelLeftClose size={19} />
-              </button>
-            </div>
+                  <button
+                    className="sidebar-toggle-btn"
+                    title="Collapse Sidebar"
+                    onClick={onToggleSidebar}
+                  >
+                    <PanelLeftClose size={18} />
+                  </button>
+                </div>
 
             <div className="sidebar-action-area">
               <button className="new-chat-btn" onClick={onNewChat}>
@@ -390,7 +404,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* View Mode 2: LEARNING & COURSES */}
         {activeTab === 'learning' && (
           <>
-            {/* Case A: Courses List */}
+            {/* Case A: No course selected */}
             {!selectedCourse && (
               <>
                 <div className="sidebar-header">
@@ -405,40 +419,30 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </div>
 
                 <div className="sidebar-action-area">
-                  <button className="new-chat-btn" onClick={onOpenCourseModal}>
+                  <button
+                    className="new-chat-btn"
+                    onClick={onOpenCourseModal}
+                    disabled={isLocked}
+                    title={isLocked ? 'Course creation is disabled while Gohard is under development' : undefined}
+                  >
                     <Plus size={18} />
                     <span>Create Skill</span>
                   </button>
                 </div>
 
-                <div className="skills-section">
-                  <div className="chats-header">
-                    <span className="chats-title">MY COURSES</span>
+                <div className="course-empty-state">
+                  <div className="skill-icon-box green">
+                    <GraduationCap size={18} />
                   </div>
-
-                  <div className="skills-list">
-                    {displayCourses.map((course) => (
-                      <div
-                        key={course.id}
-                        className="skill-card"
-                        onClick={() => setSelectedCourseId(course.id)}
-                      >
-                        <div className="skill-icon-box green">
-                          <GraduationCap size={18} />
-                        </div>
-
-                        <div className="skill-card-content">
-                          <div className="skill-card-top-row">
-                            <span className="skill-card-title">{course.title}</span>
-                            <ChevronRight size={16} className="skill-chevron" />
-                          </div>
-                          <span className="skill-status-text green">
-                            {course.totalLessons} Lessons
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                  <div className="course-empty-title">No course selected</div>
+                  <p className="course-empty-copy">
+                    Pick a course to see its lessons here.
+                  </p>
+                  {activeTab !== 'learning' && (
+                    <button className="course-empty-cta" onClick={onBrowseSkills}>
+                      Go to Skills
+                    </button>
+                  )}
                 </div>
               </>
             )}
@@ -446,13 +450,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
             {/* Case B: Selected Course Detail View */}
             {selectedCourse && (
               <>
-                <div className="sidebar-header-back-row">
+                <div className="sidebar-header-back-row course-switcher-row">
                   <button
-                    className="back-skills-btn"
-                    onClick={() => setSelectedCourseId(null)}
+                    className="course-switcher-btn"
+                    aria-haspopup="menu"
+                    aria-expanded={showCourseSwitcher}
+                    onClick={() => setShowCourseSwitcher((prev) => !prev)}
+                    title={selectedCourse.title}
                   >
-                    <ArrowLeft size={16} />
-                    <span>Back to Courses</span>
+                    <span className="course-switcher-label">{selectedCourse.title}</span>
+                    <ChevronDown size={16} className="course-switcher-chevron" />
                   </button>
                   <button
                     className="sidebar-toggle-btn"
@@ -461,6 +468,33 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   >
                     <PanelLeftClose size={18} />
                   </button>
+                  {showCourseSwitcher && (
+                    <>
+                      <div
+                        className="course-switcher-backdrop"
+                        onClick={() => setShowCourseSwitcher(false)}
+                        aria-hidden="true"
+                      />
+                      <div className="course-switcher-menu" role="menu">
+                        {displayCourses.map((course) => (
+                          <button
+                            key={course.id}
+                            className={`course-switcher-item${course.id === selectedCourse.id ? ' active' : ''}`}
+                            role="menuitemradio"
+                            aria-checked={course.id === selectedCourse.id}
+                            title={course.title}
+                            onClick={() => {
+                              setSelectedCourseId(course.id);
+                              setShowCourseSwitcher(false);
+                            }}
+                          >
+                            <GraduationCap size={15} className="course-switcher-item-icon" />
+                            <span className="course-switcher-item-label">{course.title}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 <div className="course-detail-header-card green">
@@ -482,7 +516,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
                   <div className="modules-clean-list">
                     {selectedCourse.modules.map((mod) => {
-                      const isExpanded = expandedModuleIds[mod.id] !== false;
+                      const isExpanded = expandedModuleIds[mod.id] ?? mod.id === resumeModuleId;
 
                       return (
                         <div key={mod.id} className="clean-module-group">

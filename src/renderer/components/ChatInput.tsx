@@ -6,6 +6,7 @@ interface ChatInputProps {
   disabled?: boolean;
   isStreaming?: boolean;
   onAbort?: () => void;
+  isLocked?: boolean;
 }
 
 export const ChatInput: React.FC<ChatInputProps> = ({
@@ -13,6 +14,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   disabled = false,
   isStreaming = false,
   onAbort,
+  isLocked = false,
 }) => {
   const [text, setText] = useState<string>('');
   const [showActionsMenu, setShowActionsMenu] = useState<boolean>(false);
@@ -38,7 +40,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   }, [showActionsMenu]);
 
   const handleSubmit = (): void => {
-    if (!text.trim() || disabled) return;
+    if (!text.trim() || disabled || isLocked) return;
     const submittedText = text.trim();
     setText('');
     if (textareaRef.current) {
@@ -64,28 +66,28 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
   return (
     <div className="chat-card-input-wrapper">
-      <div className="chat-card-input-box">
+      <div className={`chat-card-input-box${isLocked ? ' is-locked' : ''}`}>
         <textarea
           ref={textareaRef}
           value={text}
           onChange={handleTextChange}
           onKeyDown={handleKeyDown}
-          placeholder="Ask Gohard anything..."
+          placeholder={isLocked ? 'Gohard is under development — chat is disabled for now…' : 'Ask Gohard anything...'}
           rows={1}
-          disabled={disabled || isStreaming}
+          disabled={disabled || isStreaming || isLocked}
           className="chat-card-textarea"
         />
 
         <div className="chat-card-input-toolbar">
           <div className="card-toolbar-left">
             <div className="desktop-tools-group">
-              <button className="card-tool-box" title="Attach file" aria-label="Attach file">
+              <button className="card-tool-box" title="Attach file" aria-label="Attach file" disabled={isLocked}>
                 <Paperclip size={16} />
               </button>
-              <button className="card-tool-box" title="Code & Tools" aria-label="Code & Tools">
+              <button className="card-tool-box" title="Code & Tools" aria-label="Code & Tools" disabled={isLocked}>
                 <CodeXml size={16} />
               </button>
-              <button className="card-tool-box" title="Web Search" aria-label="Web Search">
+              <button className="card-tool-box" title="Web Search" aria-label="Web Search" disabled={isLocked}>
                 <Globe size={16} />
               </button>
             </div>
@@ -133,10 +135,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
               </button>
             ) : (
               <button
-                className={`card-send-btn ${text.trim() ? 'active' : ''}`}
+                className={`card-send-btn ${text.trim() && !isLocked ? 'active' : ''}`}
                 onClick={handleSubmit}
-                disabled={!text.trim() || disabled}
-                title="Send message"
+                disabled={!text.trim() || disabled || isLocked}
+                title={isLocked ? 'Chat is disabled while Gohard is under development' : 'Send message'}
               >
                 <ArrowUp size={17} />
               </button>

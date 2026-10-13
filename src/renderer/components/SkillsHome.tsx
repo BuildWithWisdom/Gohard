@@ -15,6 +15,8 @@ export interface SkillsHomeProps {
   userCourses: UserCourseSummary[];
   onCreateSkill: (topic?: string) => void;
   onOpenCourse: (courseId: string, lessonId: string) => void;
+  onCoursesChanged: () => void;
+  isLocked?: boolean;
 }
 
 export const SkillsHome: React.FC<SkillsHomeProps> = ({
@@ -28,6 +30,8 @@ export const SkillsHome: React.FC<SkillsHomeProps> = ({
   userCourses,
   onCreateSkill,
   onOpenCourse,
+  onCoursesChanged,
+  isLocked = false,
 }) => {
   return (
     <>
@@ -46,8 +50,10 @@ export const SkillsHome: React.FC<SkillsHomeProps> = ({
       />
       <LearningHome
         userCourses={userCourses}
-        onCreateSkill={onCreateSkill}
+        onCreateSkill={isLocked ? () => undefined : onCreateSkill}
         onOpenCourse={onOpenCourse}
+        onCoursesChanged={onCoursesChanged}
+        isLocked={isLocked}
       />
     </>
   );

@@ -6,6 +6,7 @@ import { chatRouter } from './modules/chat/chat.routes';
 import { courseRouter } from './modules/course/course.routes';
 import { authRouter } from './modules/auth/auth.routes';
 import { Bindings } from './types';
+import { warmDatabaseConnection } from './db/client';
 
 const app = new Hono<{ Bindings: Bindings }>();
 
@@ -29,6 +30,8 @@ app.route('/api/courses', courseRouter);
 const port = Number(process.env.PORT) || 3000;
 serve({ fetch: app.fetch, port }, (info) => {
   console.log(`[Hono Node Server] Running on http://localhost:${info.port}`);
+  // Wake the Neon project now so the first real request isn't the cold one.
+  void warmDatabaseConnection();
 });
 
 export default app;

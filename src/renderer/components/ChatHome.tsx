@@ -24,6 +24,7 @@ export interface ChatHomeProps {
   inputDisabled: boolean;
   inputStreaming: boolean;
   onAbort: () => void;
+  isLocked?: boolean;
 }
 
 export const ChatHome: React.FC<ChatHomeProps> = ({
@@ -46,6 +47,7 @@ export const ChatHome: React.FC<ChatHomeProps> = ({
   inputDisabled,
   inputStreaming,
   onAbort,
+  isLocked = false,
 }) => {
   return (
     <>
@@ -68,15 +70,17 @@ export const ChatHome: React.FC<ChatHomeProps> = ({
           messages={messages}
           isLoading={isLoading}
           isStreaming={isStreaming}
-          onSelectPrompt={onSelectPrompt}
+          onSelectPrompt={isLocked ? undefined : onSelectPrompt}
+          isLocked={isLocked}
         />
       </div>
 
       <ChatInput
         onSendMessage={onSendMessage}
-        disabled={inputDisabled}
+        disabled={inputDisabled || isLocked}
         isStreaming={inputStreaming}
         onAbort={onAbort}
+        isLocked={isLocked}
       />
     </>
   );

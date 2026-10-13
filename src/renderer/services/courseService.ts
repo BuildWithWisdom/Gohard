@@ -129,3 +129,15 @@ export async function deleteCourse(courseId: string, userId: string = 'user-defa
   }
   return response.json();
 }
+
+export async function archiveCourse(courseId: string) {
+  const response = await fetch(`${HONO_API_URL}/api/courses/${courseId}/archive`, {
+    method: 'PUT',
+    headers: getAuthHeaders(),
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: `HTTP ${response.status}` }));
+    throw new Error(errorData.error || `Failed to archive course [${response.status}]`);
+  }
+  return response.json();
+}

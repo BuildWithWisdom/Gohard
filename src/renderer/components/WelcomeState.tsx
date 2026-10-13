@@ -4,9 +4,10 @@ import GohardLogo from './GohardLogo';
 
 interface WelcomeStateProps {
   onSelectPrompt: (promptText: string) => void;
+  disabled?: boolean;
 }
 
-export const WelcomeState: React.FC<WelcomeStateProps> = ({ onSelectPrompt }) => {
+export const WelcomeState: React.FC<WelcomeStateProps> = ({ onSelectPrompt, disabled = false }) => {
   const promptSuggestions = [
     {
       id: 'transformer-analogy',
@@ -40,12 +41,16 @@ export const WelcomeState: React.FC<WelcomeStateProps> = ({ onSelectPrompt }) =>
         <p className="welcome-subtitle">What should I teach you today?</p>
       </div>
 
-      <div className="prompt-cards-grid">
+      <div className={`prompt-cards-grid${disabled ? ' is-locked' : ''}`}>
         {promptSuggestions.map((prompt) => (
           <div
             key={prompt.id}
-            className="prompt-card"
-            onClick={() => onSelectPrompt(prompt.text)}
+            className={`prompt-card${disabled ? ' is-disabled' : ''}`}
+            onClick={() => {
+              if (disabled) return;
+              onSelectPrompt(prompt.text);
+            }}
+            aria-disabled={disabled}
           >
             <div className="card-top">{prompt.icon}</div>
             <p className="card-text">{prompt.text}</p>

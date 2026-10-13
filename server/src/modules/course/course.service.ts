@@ -1,4 +1,4 @@
-import { prisma } from '../../db/client';
+import { prisma, withDbRetry } from '../../db/client';
 import { courseGenerator, GenerateCurriculumParams } from './courseGenerator';
 
 export interface CreateCourseInput extends GenerateCurriculumParams {
@@ -9,7 +9,11 @@ const lessonMemoryCache = new Map<string, any>();
 
 export class CourseService {
   private async ensureUserExists(userId: string) {
-    const existing = await prisma.user.findUnique({ where: { id: userId } });
+    // Retried: the first query after Neon sleeps often throws a blank
+    // ErrorEvent while the project wakes up; the retry usually succeeds.
+    const existing = await withDbRetry(() =>
+      prisma.user.findUnique({ where: { id: userId } })
+    );
     if (!existing) {
       throw new Error(`User with ID ${userId} does not exist in database.`);
     }
@@ -90,8 +94,11 @@ export class CourseService {
       orderBy: { createdAt: 'desc' },
       include: {
         modules: {
+          orderBy: { moduleOrder: 'asc' },
           include: {
-            lessons: true,
+            lessons: {
+              orderBy: { lessonOrder: 'asc' },
+            },
           },
         },
         courseMemory: true,
@@ -254,6 +261,27 @@ export class CourseService {
 
     await prisma.course.delete({
       where: { id: courseId },
+    });
+
+    return { success: true };
+  }
+
+  async archiveCourse(courseId: string, userId: string = 'user-default') {
+    // Archive reuses Course.isCompleted (no flow sets it today): archived
+    // courses are hidden from the Skills grid without deleting data.
+    const existing = await withDbRetry(() =>
+      prisma.course.findFirst({
+        where: { id: courseId, userId },
+      })
+    );
+
+    if (!existing) {
+      throw new Error('Course not found');
+    }
+
+    await prisma.course.update({
+      where: { id: courseId },
+      data: { isCompleted: true },
     });
 
     return { success: true };

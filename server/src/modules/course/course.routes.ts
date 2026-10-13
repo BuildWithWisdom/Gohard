@@ -19,3 +19,5 @@ courseRouter.get('/lessons/:lessonId', (c) => courseController.handleGetLessonCo
 courseRouter.get('/:id', (c) => courseController.handleGetCourseDetails(c));
 
 courseRouter.delete('/:id', (c) => courseController.handleDeleteCourse(c));
+
+courseRouter.put('/:id/archive', (c) => courseController.handleArchiveCourse(c));
